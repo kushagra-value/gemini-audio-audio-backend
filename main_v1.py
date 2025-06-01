@@ -6,52 +6,14 @@ import traceback
 import time
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 import asyncio, struct
-
-
+from config.config import CONFIG, MODEL, client, SEND_SR, RECV_SR, CHUNK, FORMAT
+from config.prompts import general_interviewer_prompt
 import pyaudio
 
 from google import genai
 from google.genai import types
 
 app = FastAPI()
-FORMAT = pyaudio.paInt16
-SEND_SR = 48_000
-RECV_SR = 24_000
-CHUNK = 1024   
-
-MODEL = "models/gemini-2.0-flash-live-001"
-
-client = genai.Client(
-    http_options={"api_version": "v1beta"},
-    api_key="AIzaSyDJsgZ9yRFF6lu4DMZxkg3n4MesTTkNpFQ",
-)
-
-# Try CONFIG without input_audio_transcription first to see if that's the issue
-CONFIG = types.LiveConnectConfig(
-    response_modalities=["AUDIO"],
-    speech_config=types.SpeechConfig(
-        voice_config=types.VoiceConfig(
-            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="puck"),
-        )
-    ),
-    realtime_input_config=types.RealtimeInputConfig(
-        automatic_activity_detection=types.AutomaticActivityDetection(
-            disabled=False,
-            start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_HIGH,
-            end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_LOW,
-            prefix_padding_ms=100,
-            silence_duration_ms=1000,
-        )
-    ),
-    # Comment out input transcription for now
-    input_audio_transcription=types.AudioTranscriptionConfig(),
-    output_audio_transcription=types.AudioTranscriptionConfig(),
-    generation_config=types.GenerationConfig(
-        temperature=0.7,
-        top_p=0.95,
-        top_k=70
-    ),
-)
 
 pya = pyaudio.PyAudio()
 
@@ -70,10 +32,18 @@ class AudioLoop:
         self.active = True
         self.last_audio_time = time.time()
         self.conversation = []
-    
+        self.agent_id = None
+        self.dynamic_data = None
+        self.general_interviewer_prompt = general_interviewer_prompt
+        self.final_prompt = None
     def set_websocket(self, ws):
-        
         self.ws = ws
+    
+    def set_dynamic_data(self, dynamic_data):
+            self.dynamic_data = dynamic_data
+
+    def set_agent_id(self, agent_id):
+        self.agent_id = agent_id
 
     def add_label(self, label, text):
         return f"{label}: {text}"
@@ -174,6 +144,43 @@ class AudioLoop:
             print(f"Error in monitor_silence: {e}")
             traceback.print_exc()
 
+    def create_final_prompt(self):
+        """
+        Replaces placeholders in the general_interviewer_prompt with values from json_data.
+        
+        Args:
+            json_data (dict): The JSON data containing values for placeholders.
+            general_interviewer_prompt (str): The template string with placeholders.
+        
+        Returns:
+            str: The final prompt with all placeholders replaced.
+        """
+        json_data = self.dynamic_data  # Assuming dynamic_data is set before this method is called
+        # Default value for interviewerPersonality since it's not in the JSON
+        interviewer_personality = "professional, friendly, and encouraging"
+        
+        # Create a dictionary of placeholders and their corresponding values
+        replacements = {
+            "{{role}}": json_data.get("role", ""),
+            "{{mins}}": json_data.get("mins", ""),
+            "{{name}}": json_data.get("name", ""),
+            "{{objective}}": json_data.get("objective", ""),
+            "{{questionFocus}}": json_data.get("questionFocus", ""),
+            "{{description}}": json_data.get("description", ""),
+            "{{interviewerName}}": json_data.get("interviewerName", ""),
+            "{{interviewerPersonality}}": interviewer_personality,
+            "{{candidateName}}": json_data.get("name", ""),
+            "{{behavioralQuestions}}": json_data.get("behavioralQuestions", ""),
+            "{{questions}}": json_data.get("questions", "")
+        }
+        
+        # Replace placeholders in the prompt
+        final_prompt = self.general_interviewer_prompt
+        for placeholder, value in replacements.items():
+            final_prompt = final_prompt.replace(placeholder, str(value))
+        
+        self.final_prompt = final_prompt
+    
     async def run(self):
         """Match your WebSocket handler structure"""
         try:
@@ -182,7 +189,7 @@ class AudioLoop:
                 
                 # Send initial prompt like your WebSocket handler
                 print("Sending initial prompt to Gemini...")
-                await self.session.send(input=f"{prompt}", end_of_turn=True)
+                await self.session.send(input=f"{self.final_prompt}", end_of_turn=True)
                 print("Initial prompt sent.")
                 
                 # Create tasks matching your WebSocket handler structure
@@ -208,14 +215,23 @@ class AudioLoop:
 
 
 @app.websocket("/ws/audio")
-async def audio_ws(ws: WebSocket):
+async def audio_ws(ws: WebSocket, agent_id: str):
     await ws.accept()
     loop = AudioLoop()            # your class, unchanged except ↓
     loop.set_websocket(ws)        # small helper you add
     try:
+        data = await ws.receive_json()
+        dynamic_data = data.get("dynamic_data", {})
+        loop.set_dynamic_data(dynamic_data)
+        loop.set_agent_id(agent_id)  # set agent_id in the loop
+        loop.create_final_prompt()
         await loop.run()          # this now runs until the socket closes
     except WebSocketDisconnect:
         loop.active = False
+    except Exception as e:
+        print(f"Error: {e}")
+        loop.active = False
+        await ws.close()
 
 
 @app.get("/")
