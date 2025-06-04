@@ -1,27 +1,28 @@
+from contextlib import asynccontextmanager
+import logging
 import os
 import asyncio
 import json
 import traceback
 import time
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
 from config.config import CONFIG, MODEL, SEND_SR, RECV_SR, CHUNK, client
 from config.prompts import general_interviewer_prompt
 from google import genai
 from google.genai import types
-
+from config.database import connect_to_mongo, close_mongo_connection, get_database
+from services.call_service import call_service
 app = FastAPI()
 
-# Ensure config aligns with frontend
-SEND_SR = 16000
-RECV_SR = 16000
-CHUNK = 1024  # Buffer size for audio chunks
+# # Ensure config aligns with frontend
+# SEND_SR = 16000
+# RECV_SR = 16000
+# CHUNK = 1024  # Buffer size for audio chunks
 
-prompt = """ 
-You are an ai interviewer and you are interviewing a candidate for a software engineering position.
-You will ask the candidate questions and wait for their response.
-You will then ask follow-up questions based on their response.
-You will not ask the candidate to write code, but you will ask them to explain their thought process and how they would approach a problem.
-"""
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 class AudioLoop:
     def __init__(self):
@@ -36,6 +37,11 @@ class AudioLoop:
         self.general_interviewer_prompt = general_interviewer_prompt
         self.final_prompt = None
         self.ws = None
+        self.call_id = None
+        
+    def set_call_id(self, call_id):
+        self.call_id = call_id
+        print(f"Call ID set to: {self.call_id}")
 
     def set_websocket(self, ws):
         self.ws = ws
@@ -48,6 +54,14 @@ class AudioLoop:
 
     def add_label(self, label, text):
         return f"{label}: {text}"
+    
+    async def save_conversation(self):
+        if self.conversation:
+            await call_service.add_transcripts(self.call_id, self.conversation)
+            print(f"Conversation saved for call ID: {self.call_id}")
+            self.conversation = []
+        else:
+            logger.warning("No conversation to save.")
 
     async def handle_websocket_messages(self):
         while self.active:
@@ -59,7 +73,7 @@ class AudioLoop:
                     if 'bytes' in data:
                         flag, pcm = data['bytes'][0], data['bytes'][1:]
                         if flag == 0x01:  # Mic audio
-                            print(f"Received mic audio: {len(pcm)} bytes")
+                            # print(f"Received mic audio: {len(pcm)} bytes")
                             await self.out_queue.put({"data": pcm, "mime_type": "audio/pcm"})
                             self.last_audio_time = time.time()
                     elif 'text' in data:
@@ -67,7 +81,8 @@ class AudioLoop:
                         if json_data.get("action") == "end_call":
                             print("Received end_call action")
                             self.active = False
-                            self.ws.close()
+                            await self.save_conversation()
+                            await self.ws.close()
                             break
                         text = json_data.get("input", "")
                         if text:
@@ -87,7 +102,7 @@ class AudioLoop:
         try:
             while self.active:
                 msg = await self.out_queue.get()
-                print(f"Sending audio to Gemini: {len(msg['data'])} bytes")
+                # print(f"Sending audio to Gemini: {len(msg['data'])} bytes")
                 await self.session.send_realtime_input(audio=msg)
         except Exception as e:
             print(f"Error in send_audio_to_gemini: {e}")
@@ -139,8 +154,8 @@ class AudioLoop:
 
                 async for response in turn:
                     # Debug: Print the full response structure
-                    print(f"Response type: {type(response)}")
-                    print(f"Response attributes: {dir(response)}")
+                    # print(f"Response type: {type(response)}")
+                    # print(f"Response attributes: {dir(response)}")
                     
                     # Handle function calls in different possible locations
                     function_call_found = False
@@ -150,7 +165,7 @@ class AudioLoop:
                         if hasattr(response.server_content, 'model_turn') and response.server_content.model_turn:
                             if hasattr(response.server_content.model_turn, 'parts'):
                                 for part in response.server_content.model_turn.parts:
-                                    print(f"Part type: {type(part)}, attributes: {dir(part)}")
+                                    # print(f"Part type: {type(part)}, attributes: {dir(part)}")
                                     if hasattr(part, 'function_call') and part.function_call:
                                         print(f"Found function call in model_turn: {part.function_call}")
                                         function_ended = await self.handle_function_call(part.function_call)
@@ -193,19 +208,21 @@ class AudioLoop:
 
                     # Handle audio data
                     if data := response.data:
-                        print(f"Received audio data from Gemini: {len(data)} bytes")
+                        # print(f"Received audio data from Gemini: {len(data)} bytes")
                         self.audio_in_queue.put_nowait(data)
-                        print(f"Audio in queue size: {self.audio_in_queue.qsize()}")
+                        # print(f"Audio in queue size: {self.audio_in_queue.qsize()}")
 
                     # Handle transcriptions
                     if hasattr(response, 'server_content') and response.server_content:
                         if response.server_content.output_transcription:
                             chunk = response.server_content.output_transcription.text or ""
                             ai_text += chunk
+                            await self.ws.send_json({"ai_text": ai_text})
 
                         if response.server_content.input_transcription:
                             chunk = response.server_content.input_transcription.text or ""
                             candidate_text += chunk
+                            await self.ws.send_json({"candidate_text": candidate_text})
 
                 if ai_text.strip() or candidate_text.strip():
                     transcript_data = {}
@@ -216,8 +233,8 @@ class AudioLoop:
                     
                     
                     # Only send if websocket is still active
-                    if self.active:
-                        await self.ws.send_json(transcript_data)
+                    # if self.active:
+                    #     await self.ws.send_json(transcript_data)
 
                     if candidate_text.strip():
                         self.conversation.append(self.add_label("User", candidate_text.strip()))
@@ -235,7 +252,7 @@ class AudioLoop:
             try:
                 pcm = await self.audio_in_queue.get()
                 msg = b'\x02' + pcm
-                print(f"Playing audio chunk of size: {len(msg)} bytes")
+                # print(f"Playing audio chunk of size: {len(msg)} bytes")
                 if self.active:  # Check if still active before sending
                     await self.ws.send_bytes(msg)
             except Exception as e:
@@ -309,6 +326,8 @@ class AudioLoop:
 @app.websocket("/ws/audio")
 async def audio_ws(ws: WebSocket, agent_id: str = "default-agent"):
     await ws.accept()
+    call_id = ws.query_params.get("access_token", None)
+    print("call_id is ", call_id)
     loop = AudioLoop()
     loop.set_websocket(ws)
     try:
@@ -318,27 +337,88 @@ async def audio_ws(ws: WebSocket, agent_id: str = "default-agent"):
         dynamic_data = data.get("dynamic_data", {})
         if not dynamic_data:
             raise ValueError("Dynamic data is required to start the interview.")
+        print("data is ",data)
+        loop.set_call_id(call_id)
+        print(f"Call ID: {loop.call_id}")
         loop.set_dynamic_data(dynamic_data)
         loop.set_agent_id(agent_id)
+        
         loop.create_final_prompt()
         await loop.run()
     except WebSocketDisconnect:
         loop.active = False
         try:
+            loop.save_conversation()
             await ws.close()
         except:
             pass
     except Exception as e:
         print(f"Error: {e}")
+        print(traceback.format_exc())
         loop.active = False
         try:
             await ws.close()
         except:
             pass
 
+
+
+
 @app.get("/")
 async def root():
     return {"message": "WebSocket server is running. Connect to /ws/audio for audio processing."}
+
+
+#connect to mongo on startup
+@app.on_event("startup")
+async def startup_event():
+    await connect_to_mongo()
+    logger.info("Connected to MongoDB on startup.")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await close_mongo_connection()
+    logger.info("Disconnected from MongoDB on shutdown.")
+
+class RegisterCallRequest(BaseModel):
+    interviewer_id: str
+    dynamic_data: dict
+    interview_id: str
+    
+@app.post("/api/register")
+async def register_call(request: RegisterCallRequest):
+    interviewer_id = request.interviewer_id
+    dynamic_data = request.dynamic_data
+    interview_id = request.interview_id
+    #generate a call_id based on current time
+    
+    call_id = f"call_{interview_id}_{int(time.time())}"
+    call_data = {
+        "call_id": call_id,
+        "dynamic_data": dynamic_data,
+        "interviewer_id": interviewer_id,
+        "interview_id": interview_id,
+    }
+    await call_service.save_call(call_data)
+    logger.info(f"Call registered with ID: {call_id} for interviewer: {interviewer_id}")
+    print(call_service.get_call(call_id))
+    
+    return {"message": "Call registered successfully.", "call_id": call_id, "access_token": call_id}
+
+@app.get("/api/call/{call_id}")
+async def get_call(call_id: str):
+    call = await call_service.get_call(call_id)
+    
+    if not call:
+        return {"message": "Call not found."}
+    return call
+
+@app.get("/api/calls")
+async def get_all_calls():
+    """Get all calls from the database"""
+    # TypeError: object list can't be used in 'await' expression
+    calls = await call_service.get_all_calls()
+    return {"calls": calls}
 
 if __name__ == "__main__":
     import uvicorn
