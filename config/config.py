@@ -2,7 +2,9 @@ from fastapi import FastAPI
 import pyaudio
 from google import genai
 from google.genai import types
-
+from dotenv import load_dotenv
+import os
+load_dotenv()
 
 
 
@@ -12,10 +14,12 @@ RECV_SR = 24_000
 CHUNK = 1024   
 
 MODEL = "models/gemini-2.0-flash-live-001"
-
+print()
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+# print(f"GEMINI_KEY: {GEMINI_KEY}")
 client = genai.Client(
     http_options={"api_version": "v1beta"},
-    api_key="AIzaSyDJsgZ9yRFF6lu4DMZxkg3n4MesTTkNpFQ",
+    api_key=GEMINI_KEY,
 )
 
 end_call_tool = types.Tool(
