@@ -38,6 +38,9 @@ class AudioLoop:
         self.final_prompt = None
         self.ws = None
         self.call_id = None
+        self.start_time = None
+        self.end_time = None
+        
         
     def set_call_id(self, call_id):
         self.call_id = call_id
@@ -45,6 +48,16 @@ class AudioLoop:
 
     def set_websocket(self, ws):
         self.ws = ws
+    
+    def set_start_time(self):
+        """Set the start time of the call."""
+        self.start_time = int(time.time())
+        print(f"Call started at: {self.start_time}")
+    
+    def set_end_time(self):
+        """Set the end time of the call."""
+        self.end_time = int(time.time())
+        print(f"Call ended at: {self.end_time}")
     
     def set_dynamic_data(self, dynamic_data):
         self.dynamic_data = dynamic_data
@@ -55,13 +68,18 @@ class AudioLoop:
     def add_label(self, label, text):
         return f"{label}: {text}"
     
-    async def save_conversation(self):
-        if self.conversation:
-            await call_service.add_transcripts(self.call_id, self.conversation)
+    async def save_conversation_and_timestamp(self):
+        try:
+            # convert conversation to a string
+            conversation_str = "\n".join(self.conversation)
+            self.set_end_time()  # Set end time when saving conversation
+            await call_service.add_transcript_and_timestamp(self.call_id, conversation_str, self.start_time, self.end_time)
             print(f"Conversation saved for call ID: {self.call_id}")
             self.conversation = []
-        else:
-            logger.warning("No conversation to save.")
+        except Exception as e:
+            print(f"Error saving conversation: {e}")
+  
+   
 
     async def handle_websocket_messages(self):
         while self.active:
@@ -81,7 +99,7 @@ class AudioLoop:
                         if json_data.get("action") == "end_call":
                             print("Received end_call action")
                             self.active = False
-                            await self.save_conversation()
+                            await self.save_conversation_and_timestamp()
                             await self.ws.close()
                             break
                         text = json_data.get("input", "")
@@ -307,6 +325,7 @@ class AudioLoop:
                 print("Sending initial prompt to Gemini...")
                 await self.session.send(input=f"{self.final_prompt}", end_of_turn=True)
                 print("Initial prompt sent.")
+                self.set_start_time()  # Set start time when session starts
                 
                 async with asyncio.TaskGroup() as tg:
                     tg.create_task(self.handle_websocket_messages())
@@ -348,7 +367,7 @@ async def audio_ws(ws: WebSocket, agent_id: str = "default-agent"):
     except WebSocketDisconnect:
         loop.active = False
         try:
-            loop.save_conversation()
+            loop.save_conversation_and_timestamp()
             await ws.close()
         except:
             pass
@@ -398,6 +417,10 @@ async def register_call(request: RegisterCallRequest):
         "dynamic_data": dynamic_data,
         "interviewer_id": interviewer_id,
         "interview_id": interview_id,
+        "call_analysis": {
+            "call_successful": True,
+            "call_duration": 0
+        }
     }
     await call_service.save_call(call_data)
     logger.info(f"Call registered with ID: {call_id} for interviewer: {interviewer_id}")

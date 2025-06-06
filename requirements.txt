@@ -16,3 +16,5 @@ pdfminer.six
 pyaudio
 pydub
 uvicorn[standard]
+pymongo
+motor

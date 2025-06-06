@@ -39,10 +39,13 @@ class CallService:
                 "interviewer_id": call_data.get("interviewer_id"),
                 "interview_id": call_data.get("interview_id"),
                 "dynamic_data": call_data.get("dynamic_data"),
-                "transcripts": [],  # Initially empty
+                "transcripts": "",  # Initially empty
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
-                "status": "registered"
+                "status": "registered",
+                "call_analysis": call_data.get("call_analysis", {}),
+                "end_timestamp": None,  # Initially None
+                "start_timestamp": None
             }
             
             result = await collection.insert_one(call_document)
@@ -61,6 +64,8 @@ class CallService:
                 "success": False,
                 "error": str(e)
             }
+    
+    
     
     async def get_call(self, call_id: str) -> Optional[Dict[str, Any]]:
         """Get call by call_id"""
@@ -155,6 +160,44 @@ class CallService:
             
         except Exception as e:
             logger.error(f"Error adding transcripts to call {call_id}: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+            
+    async def add_transcript_and_timestamp(self, call_id: str, transcripts: str, start_timestamp: int, end_timestamp: int) -> Dict[str, Any]:
+        """Add transcripts and timestamps to a call"""
+        try:
+            collection = await self.get_collection()
+            
+            update_doc = {
+                "transcripts": transcripts,
+                "start_timestamp": start_timestamp,
+                "end_timestamp": end_timestamp,
+                "updated_at": datetime.utcnow()
+            }
+            
+            result = await collection.update_one(
+                {"call_id": call_id},
+                {"$set": update_doc}
+            )
+            
+            if result.modified_count > 0:
+                logger.info(f"Transcripts and timestamps added to call {call_id}")
+                return {
+                    "success": True,
+                    "modified_count": result.modified_count,
+                    "call_id": call_id
+                }
+            else:
+                logger.warning(f"Call {call_id} not found or transcripts not updated")
+                return {
+                    "success": False,
+                    "error": "Call not found or transcripts not updated"
+                }
+            
+        except Exception as e:
+            logger.error(f"Error adding transcripts and timestamps to call {call_id}: {e}")
             return {
                 "success": False,
                 "error": str(e)

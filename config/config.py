@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-import pyaudio
+
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
@@ -8,7 +8,7 @@ load_dotenv()
 
 
 
-FORMAT = pyaudio.paInt16
+
 SEND_SR = 48_000
 RECV_SR = 24_000
 CHUNK = 1024   

@@ -26,7 +26,7 @@ class InterviewerGeminiService:
         """
         try:
             self.supabase: Client = create_client(supabase_url, supabase_key)
-            self.table_name = "interviewer_gemini"
+            self.table_name = "interviewer"
         except Exception as e:
             raise Exception(f"Failed to initialize Supabase client: {str(e)}")
     
@@ -63,7 +63,7 @@ class InterviewerGeminiService:
                 error=f"Failed to fetch all records: {str(e)}"
             )
     
-    def get_by_id(self, record_id: Any) -> InterviewerGeminiResponse:
+    def get_by_id(self, agent_id: Any) -> InterviewerGeminiResponse:
         """
         Get a single record by ID from interviewer_gemini table
         
@@ -74,7 +74,7 @@ class InterviewerGeminiService:
             InterviewerGeminiResponse: Response object with data or error
         """
         try:
-            response = self.supabase.table(self.table_name).select("*").eq("id", record_id).execute()
+            response = self.supabase.table(self.table_name).select("*").eq("agent_id", agent_id).execute()
             
             if response.data and len(response.data) > 0:
                 return InterviewerGeminiResponse(
@@ -85,13 +85,13 @@ class InterviewerGeminiService:
             else:
                 return InterviewerGeminiResponse(
                     success=False,
-                    error=f"No record found with ID: {record_id}"
+                    error=f"No record found with ID: {agent_id}"
                 )
                 
         except Exception as e:
             return InterviewerGeminiResponse(
                 success=False,
-                error=f"Failed to fetch record with ID {record_id}: {str(e)}"
+                error=f"Failed to fetch record with ID {agent_id}: {str(e)}"
             )
     
     def get_with_filters(self, filters: Dict[str, Any]) -> InterviewerGeminiResponse:
@@ -126,45 +126,45 @@ class InterviewerGeminiService:
             )
 
 
-# # Example usage
-# if __name__ == "__main__":
-#     # Initialize the service
-#     # SUPABASE_URL = "YOUR_SUPABASE_URL"
-#     # SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY"
+# Example usage
+if __name__ == "__main__":
+    # Initialize the service
+    # SUPABASE_URL = "YOUR_SUPABASE_URL"
+    # SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY"
     
-#     # Or load from environment variables
-#     SUPABASE_URL = os.getenv("SUPABASE_URL")
-#     SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
+    # Or load from environment variables
+    SUPABASE_URL = os.getenv("SUPABASE_URL")
+    SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
     
-#     try:
-#         service = InterviewerGeminiService(SUPABASE_URL, SUPABASE_KEY)
+    try:
+        service = InterviewerGeminiService(SUPABASE_URL, SUPABASE_KEY)
         
-#         # Get all records
-#         print("Fetching all records...")
-#         all_records = service.get_all()
-#         if all_records.success:
-#             print(f"Found {all_records.count} records")
-#             print(all_records.data)
-#         else:
-#             print(f"Error: {all_records.error}")
+        # Get all records
+        print("Fetching all records...")
+        all_records = service.get_all()
+        if all_records.success:
+            print(f"Found {all_records.count} records")
+            print(all_records.data)
+        else:
+            print(f"Error: {all_records.error}")
         
-#         # Get record by ID
-#         print("\nFetching record by ID...")
-#         record_by_id = service.get_by_id(945)  # Replace with actual ID
-#         if record_by_id.success:
-#             print("Record found:")
-#             print(record_by_id.data)
-#         else:
-#             print(f"Error: {record_by_id.error}")
+        # Get record by ID
+        print("\nFetching record by ID...")
+        record_by_id = service.get_by_id("agent_a6a6f23321bf5f23166b2a10d4")  # Replace with actual ID
+        if record_by_id.success:
+            print("Record found:")
+            print(record_by_id.data)
+        else:
+            print(f"Error: {record_by_id.error}")
         
-#         # Get with custom filters
-#         print("\nFetching with filters...")
-#         filtered_records = service.get_with_filters({"status": "active"})
-#         if filtered_records.success:
-#             print(f"Found {filtered_records.count} active records")
-#             print(filtered_records.data)
-#         else:
-#             print(f"Error: {filtered_records.error}")
+        # Get with custom filters
+        print("\nFetching with filters...")
+        filtered_records = service.get_with_filters({"status": "active"})
+        if filtered_records.success:
+            print(f"Found {filtered_records.count} active records")
+            print(filtered_records.data)
+        else:
+            print(f"Error: {filtered_records.error}")
             
-#     except Exception as e:
-#         print(f"Failed to initialize service: {e}")
+    except Exception as e:
+        print(f"Failed to initialize service: {e}")
