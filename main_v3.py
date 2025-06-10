@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class AudioLoop:
     def __init__(self):
         self.audio_in_queue = asyncio.Queue()
-        self.out_queue = asyncio.Queue(maxsize=20)
+        self.out_queue = asyncio.Queue()
         self.session = None
         self.active = True
         self.last_audio_time = time.time()
@@ -291,8 +291,41 @@ class AudioLoop:
             self.active = False
 
     def create_final_prompt(self):
+        # Initialize json_data
         json_data = self.dynamic_data or {}
+        
+        # If dynamic_data is a string, parse it as JSON
+        if isinstance(json_data, str):
+            try:
+                json_data = json.loads(json_data)
+            except json.JSONDecodeError:
+                json_data = {}
+                print("Error: Could not parse dynamic_data as JSON. Using empty dict.")
+        
         interviewer_personality = "professional, friendly, and encouraging"
+        
+        # Extract and parse questions
+        questions_data = json_data.get("questions", [])
+        if isinstance(questions_data, str):
+            try:
+                questions_data = json.loads(questions_data)
+            except json.JSONDecodeError:
+                questions_data = []
+                print("Error: Could not parse questions as JSON. Using empty list.")
+        
+        # Format questions and follow-ups
+        formatted_questions = ""
+        for idx, q in enumerate(questions_data, 1):
+            main_question = q.get("question", "")
+            follow_ups = q.get("follow_ups", [])
+            formatted_questions += f"{idx}. {main_question}\n"
+            if follow_ups:
+                formatted_questions += "   Follow-up questions:\n"
+                for f_idx, follow_up in enumerate(follow_ups, 1):
+                    formatted_questions += f"     {f_idx}. {follow_up}\n"
+            formatted_questions += "\n"
+        
+        # Define replacements for the prompt
         replacements = {
             "{{role}}": json_data.get("role", ""),
             "{{mins}}": json_data.get("mins", ""),
@@ -304,8 +337,10 @@ class AudioLoop:
             "{{interviewerPersonality}}": interviewer_personality,
             "{{candidateName}}": json_data.get("name", ""),
             "{{behavioralQuestions}}": json_data.get("behavioralQuestions", ""),
-            "{{questions}}": json_data.get("questions", "")
+            "{{questions}}": formatted_questions
         }
+        
+        # Replace placeholders in the general prompt
         final_prompt = self.general_interviewer_prompt
         for placeholder, value in replacements.items():
             final_prompt = final_prompt.replace(placeholder, str(value))
@@ -317,6 +352,10 @@ class AudioLoop:
         """
         
         self.final_prompt = final_prompt + tool_instruction
+        
+        # Write the final prompt to a file for debugging
+        with open("final_prompt.txt", "w") as f:
+            f.write(self.final_prompt)
     
     async def run(self):
         try:
@@ -332,7 +371,7 @@ class AudioLoop:
                     tg.create_task(self.send_audio_to_gemini())
                     tg.create_task(self.receive_from_gemini())
                     tg.create_task(self.play_audio())
-                    tg.create_task(self.monitor_silence())
+                    # tg.create_task(self.monitor_silence())
         except asyncio.CancelledError:
             print("Session cancelled")
         except Exception as e:

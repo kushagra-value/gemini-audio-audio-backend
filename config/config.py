@@ -18,7 +18,10 @@ print()
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 # print(f"GEMINI_KEY: {GEMINI_KEY}")
 client = genai.Client(
-    http_options={"api_version": "v1beta"},
+    http_options=types.HttpOptions(
+        timeout=600,
+        api_version="v1beta"
+        ),
     api_key=GEMINI_KEY,
 )
 
@@ -26,7 +29,7 @@ end_call_tool = types.Tool(
     function_declarations=[
         types.FunctionDeclaration(
             name="end_interview_call",
-            description="Ends the current interview call and disconnects the WebSocket when the user explicitly states they want to stop or end the interview (e.g., 'let's end the interview', 'I want to stop now', 'end the interview').",
+            description="First returns a final audio message to user. Say final ending remarks. Ends the current interview call and disconnects the WebSocket when the user explicitly states they want to stop or end the interview (e.g., 'let's end the interview', 'I want to stop now', 'end the interview').",
             # No parameters are needed for this function.
             parameters=None
         )
@@ -44,7 +47,7 @@ CONFIG = types.LiveConnectConfig(
     realtime_input_config=types.RealtimeInputConfig(
         automatic_activity_detection=types.AutomaticActivityDetection(
             disabled=False,
-            start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_HIGH,
+            # start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_LOW,
             end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_LOW,
             prefix_padding_ms=100,
             silence_duration_ms=1000,
@@ -58,5 +61,6 @@ CONFIG = types.LiveConnectConfig(
         top_p=0.95,
         top_k=70
     ),
-    tools=[end_call_tool]
+    tools=[end_call_tool],
+    system_instruction=types.Content(parts=[types.Part(text="TRANSCRIBE ONLY IN ENGLISH, NO OTHER LANGUAGES")])
 )
