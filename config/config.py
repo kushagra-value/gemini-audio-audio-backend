@@ -62,5 +62,8 @@ CONFIG = types.LiveConnectConfig(
         top_k=70
     ),
     tools=[end_call_tool],
-    system_instruction=types.Content(parts=[types.Part(text="TRANSCRIBE ONLY IN ENGLISH, NO OTHER LANGUAGES")])
+    system_instruction=types.Content(parts=[types.Part(text="TRANSCRIBE ONLY IN ENGLISH, NO OTHER LANGUAGES")]),
+    session_resumption=types.SessionResumptionConfig(
+        handle=None
+    )
 )
