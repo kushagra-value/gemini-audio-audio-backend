@@ -44,6 +44,9 @@ class AudioLoop:
         self.session_handle = None
         self.task_group = None
         self.tasks = []
+        self.call_completed = False
+        self.once=1
+        
         
         
     def set_call_id(self, call_id):
@@ -80,6 +83,7 @@ class AudioLoop:
             await call_service.add_transcript_and_timestamp(self.call_id, conversation_str, self.start_time, self.end_time)
             print(f"Conversation saved for call ID: {self.call_id}")
             self.conversation = []
+            self.call_completed = True
         except Exception as e:
             print(f"Error saving conversation: {e}")
   
@@ -100,6 +104,7 @@ class AudioLoop:
                             self.last_audio_time = time.time()
                     elif 'text' in data:
                         json_data = json.loads(data['text'])
+                        print(f"Received JSON data: {json_data}")
                         if json_data.get("action") == "end_call":
                             print("Received end_call action")
                             self.active = False
@@ -195,8 +200,21 @@ class AudioLoop:
                         # Start a new session with the new handle if available
                         if self.session_handle:
                             print("Initiating session resumption...")
-                            await self.resume_session()
-                            return
+                            # self.active = False
+                            self.once=0
+                            print("Cancelling previous session tasks…")
+                            self.tasks[0].cancel()  # Cancel handle_websocket_messages
+                            self.tasks[1].cancel()  # Cancel send_audio_to_gemini
+                            self.tasks[3].cancel()  
+                            asyncio.current_task().cancel()  # Cancel receive_from_gemini
+                            # await self.resume_session()  # Attempt to resume session if cancelled
+                            # Give time for cancellation to propagate
+                            # await asyncio.sleep(1)
+                            # await asyncio.gather(*self.tasks, return_exceptions=True)
+                           
+                    
+                            
+                            
                     
                     # Check in server_content.model_turn
                     if hasattr(response, 'server_content') and response.server_content:
@@ -287,7 +305,9 @@ class AudioLoop:
             print("receive_from_gemini: connection closed normally")
         except asyncio.CancelledError:
             # Task was cancelled: clean up if needed
+            
             print("receive_from_gemini cancelled")
+            
         except Exception as e:
             # Other errors you might still want to log
             print(f"Error in receive_from_gemini: {e}")
@@ -445,13 +465,17 @@ class AudioLoop:
                 self.session = session
                 # await self.session.send(input=f"{self.final_prompt}", end_of_turn=True)
                 self.active = True
-                async with asyncio.TaskGroup() as tg:
-                    tg.create_task(self.handle_websocket_messages())
-                    tg.create_task(self.send_audio_to_gemini())
-                    tg.create_task(self.receive_from_gemini())
-                    tg.create_task(self.play_audio())
+                t1 = asyncio.create_task(self.handle_websocket_messages())
+                t2 = asyncio.create_task(self.send_audio_to_gemini())
+                t3 = asyncio.create_task(self.receive_from_gemini())
+                t4 = asyncio.create_task(self.play_audio())
+                    # tg.create_task(self.monitor_silence())
+                self.tasks = [t1, t2, t3, t4]
+                for task in self.tasks:
+                    await task
+                    
                 print("Session resumed and initial prompt sent.")
-            return 
+             
         except Exception as e:
             print(f"Error in resume_session: {e}")
             self.active = False
@@ -467,14 +491,20 @@ class AudioLoop:
                 print("Initial prompt sent.")
                 self.set_start_time()  # Set start time when session starts
                 
-                async with asyncio.TaskGroup() as tg:
-                    tg.create_task(self.handle_websocket_messages())
-                    tg.create_task(self.send_audio_to_gemini())
-                    tg.create_task(self.receive_from_gemini())
-                    tg.create_task(self.play_audio())
+                
+                t1 = asyncio.create_task(self.handle_websocket_messages())
+                t2 = asyncio.create_task(self.send_audio_to_gemini())
+                t3 = asyncio.create_task(self.receive_from_gemini())
+                t4 = asyncio.create_task(self.play_audio())
                     # tg.create_task(self.monitor_silence())
+                self.tasks = [t1, t2, t3, t4]
+                for task in self.tasks:
+                    await task
+            
         except asyncio.CancelledError:
             print("Session cancelled")
+            while self.call_completed is False:
+                await self.resume_session()
         except Exception as e:
             print(f"Error in AudioLoop: {e}")
             traceback.print_exc()
@@ -565,7 +595,7 @@ async def register_call(request: RegisterCallRequest):
     }
     await call_service.save_call(call_data)
     logger.info(f"Call registered with ID: {call_id} for interviewer: {interviewer_id}")
-    print(call_service.get_call(call_id))
+    # print(call_service.get_call(call_id))
     
     return {"message": "Call registered successfully.", "call_id": call_id, "access_token": call_id}
 
