@@ -110,6 +110,10 @@ class AudioLoop:
                             self.active = False
                             await self.save_conversation_and_timestamp()
                             await self.ws.close()
+                            self.tasks[2].cancel()  # Cancel handle_websocket_messages
+                            self.tasks[1].cancel()  # Cancel send_audio_to_gemini
+                            self.tasks[3].cancel()  
+                            asyncio.current_task().cancel()  # Cancel receive_from_gemini
                             break
                         text = json_data.get("input", "")
                         if text:
@@ -157,9 +161,15 @@ class AudioLoop:
                     input="Interview ended successfully. Goodbye!",
                     end_of_turn=True
                 )
+                self.save_conversation_and_timestamp()
+                self.tasks[0].cancel()  # Cancel handle_websocket_messages
+                self.tasks[1].cancel()  # Cancel send_audio_to_gemini
+                self.tasks[3].cancel()  
+                asyncio.current_task().cancel()  # Cancel receive_from_gemini
                 
                 # Set active to False to stop all loops
                 self.active = False
+
                 
                 # Close the websocket
                 # await self.ws.close()
@@ -201,7 +211,8 @@ class AudioLoop:
                         if self.session_handle:
                             print("Initiating session resumption...")
                             # self.active = False
-                            self.once=0
+                            # self.once+=1
+                            # print("once",self.once)
                             print("Cancelling previous session tasks…")
                             self.tasks[0].cancel()  # Cancel handle_websocket_messages
                             self.tasks[1].cancel()  # Cancel send_audio_to_gemini
@@ -476,10 +487,17 @@ class AudioLoop:
                     
                 print("Session resumed and initial prompt sent.")
              
+        except asyncio.CancelledError:
+            print("Session cancelled")
+            while self.call_completed is False:
+                await self.resume_session()
         except Exception as e:
-            print(f"Error in resume_session: {e}")
-            self.active = False
+            print(f"Error in AudioLoop: {e}")
             traceback.print_exc()
+        finally:
+            self.active = False
+            self.call_completed = True
+            print("AudioLoop finished")
 
 
     async def run(self):
@@ -550,6 +568,12 @@ async def audio_ws(ws: WebSocket, agent_id: str = "default-agent"):
             await ws.close()
         except:
             pass
+    finally:
+        loop.active = False
+        if loop.session:
+            await loop.session.close()
+        for i in loop.tasks:
+            i.cancel()
 
 
 

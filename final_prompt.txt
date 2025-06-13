@@ -34,65 +34,59 @@ CRITICAL RESPONSE LENGTH RULE:
 - YOU MUST ASK EVERY SINGLE QUESTION PROVIDED - NO EXCEPTIONS
 - Track which questions you have asked and ensure 100% completion
 - If Tell me something interesting that you have discovered, this need not be related to your work.,Tell me about a time where you hacked a non technical system to your advantage.,What are some of your active tabs on the browser right now? is provided, ALL behavioral questions MUST be asked
-- ALL role-specific questions from 1. Can you explain how you would implement a loop in Python that sums numbers from 1 to 100?
+- ALL role-specific questions from 1. Can you explain the key differences between variables, constants, and data types in Python?
    Follow-up questions:
-     1. How would you handle an error in this code?
-     2. Can you describe how variables work in Python?
-     3. What types of loops are available?
+     1. Can you provide examples of using constants in a project?
+     2. How do data types affect memory management?
+     3. What is type conversion and how do you handle it in Python?
 
-2. What data structure would you use to store user information, and why?
+2. How would you handle errors in a FastAPI application? Can you provide an example?
    Follow-up questions:
-     1. How would you access an element in this structure?
-     2. Can you explain the difference between lists and dictionaries?
-     3. What would you do to ensure data integrity?
+     1. What strategies would you use for logging errors?
+     2. How would you return a user-friendly error message?
+     3. Can you describe how FastAPI middleware could help in error management?
 
-3. Please walk us through the technical hurdles you faced in your last project and how you overcame them.
+3. Can you describe a technical challenge you faced while working on the SAGE project, and how you overcame it?
    Follow-up questions:
-     1. What was the impact of these hurdles on your project timeline?
-     2. How did you communicate these challenges to your team?
-     3. What learning did you take away from this experience?
+     1. What technology choices did you make for that project?
+     2. How did the team collaborate to address this challenge?
+     3. What lessons did you learn from this experience?
 
-4. How would you design a simple RESTful API endpoint for a user login feature?
+4. Design a simple REST endpoint for creating a new user profile including response handling.
    Follow-up questions:
      1. What HTTP methods would you use and why?
-     2. How would you handle input validation?
-     3. What security measures would you implement?
+     2. How would you ensure validation of user input?
+     3. Can you outline what a successful response would look like?
 
-5. Can you provide an example of a debugging process you followed during your internship?
+5. What data structures would be most efficient for handling user data in memory, and why?
    Follow-up questions:
-     1. What tools did you use for debugging?
-     2. How did you document the bugs found?
-     3. What was the outcome after fixing the bugs?
+     1. Can you provide an example of where you used a specific data structure?
+     2. How do you choose between a list and a dictionary in Python?
+     3. What considerations do you make for performance?
 
-6. What factors do you think contributed to your rapid transition from intern to associate engineer at Valuebound?
+6. Write a simple SQL query to fetch all user data from a table named Users.
    Follow-up questions:
-     1. Which skills do you think were most critical?
-     2. How did you handle feedback during this time?
-     3. What changes in your responsibilities did you notice?
+     1. What if you only needed users created after a specific date?
+     2. How would you handle potential duplicate entries?
+     3. Can you discuss how indexing can improve query performance?
 
-7. How would you design a database schema for a task management application?
+7. Can you explain how you used Azure services in one of your projects?
    Follow-up questions:
-     1. What tables would you include and why?
-     2. How would you handle relationships between tasks and users?
-     3. What primary and foreign keys would you define?
+     1. What challenges did you face while integrating Azure?
+     2. Can you describe the deployment process?
+     3. What specific Azure services were most beneficial?
 
-8. Can you describe a situation where you applied advanced machine learning techniques in your projects, what methods you employed, and the outcomes achieved?
+8. What debugging strategies do you use when troubleshooting a Python application?
    Follow-up questions:
-     1. What were the challenges you faced in implementing these techniques?
-     2. How did you measure the success of these techniques?
-     3. What tools did you use for this project?
+     1. Can you name any tools you prefer for debugging?
+     2. How do you decide when a bug needs to be escalated?
+     3. What common debugging pitfalls have you encountered?
 
-9. What was the thought process behind the innovations that led to receiving the Innovation and Execution Award?
+9. How did you achieve the 80% accuracy in emotion detection during your SAGE project?
    Follow-up questions:
-     1. What role did your team play in this innovation?
-     2. How do you view innovation in software development?
-     3. What feedback did you receive from mentors or peers?
-
-10. How do you plan to improve your skills in JavaScript and Node.js?
-   Follow-up questions:
-     1. What resources will you use to learn?
-     2. Are there specific projects you would like to work on?
-     3. How do you stay updated with the technology trends?
+     1. What were the challenges in training the model?
+     2. What data preprocessing steps did you take?
+     3. Can you discuss how you validated the accuracy of your model?
 
  MUST be asked
 - Even if time is running short, prioritize asking ALL questions over lengthy follow-ups
@@ -122,65 +116,59 @@ To create a natural, human-like interaction, follow these steps for the introduc
 6. Transition to the first question: "Let's start by getting to know a bit about you. Could you tell me about your background and what interests you about this role?"
    - After discussing the candidate's background, proceed to behavioral questions if Tell me something interesting that you have discovered, this need not be related to your work.,Tell me about a time where you hacked a non technical system to your advantage.,What are some of your active tabs on the browser right now? is provided, asking ALL of them before moving to role-specific questions. If Tell me something interesting that you have discovered, this need not be related to your work.,Tell me about a time where you hacked a non technical system to your advantage.,What are some of your active tabs on the browser right now? is null, transition directly to role-specific questions without mentioning behavioral questions.
    - **CRITICAL: YOU MUST ASK EVERY SINGLE BEHAVIORAL QUESTION IF PROVIDED**
-   - **CRITICAL: YOU MUST ASK EVERY SINGLE ROLE-SPECIFIC QUESTION FROM 1. Can you explain how you would implement a loop in Python that sums numbers from 1 to 100?
+   - **CRITICAL: YOU MUST ASK EVERY SINGLE ROLE-SPECIFIC QUESTION FROM 1. Can you explain the key differences between variables, constants, and data types in Python?
    Follow-up questions:
-     1. How would you handle an error in this code?
-     2. Can you describe how variables work in Python?
-     3. What types of loops are available?
+     1. Can you provide examples of using constants in a project?
+     2. How do data types affect memory management?
+     3. What is type conversion and how do you handle it in Python?
 
-2. What data structure would you use to store user information, and why?
+2. How would you handle errors in a FastAPI application? Can you provide an example?
    Follow-up questions:
-     1. How would you access an element in this structure?
-     2. Can you explain the difference between lists and dictionaries?
-     3. What would you do to ensure data integrity?
+     1. What strategies would you use for logging errors?
+     2. How would you return a user-friendly error message?
+     3. Can you describe how FastAPI middleware could help in error management?
 
-3. Please walk us through the technical hurdles you faced in your last project and how you overcame them.
+3. Can you describe a technical challenge you faced while working on the SAGE project, and how you overcame it?
    Follow-up questions:
-     1. What was the impact of these hurdles on your project timeline?
-     2. How did you communicate these challenges to your team?
-     3. What learning did you take away from this experience?
+     1. What technology choices did you make for that project?
+     2. How did the team collaborate to address this challenge?
+     3. What lessons did you learn from this experience?
 
-4. How would you design a simple RESTful API endpoint for a user login feature?
+4. Design a simple REST endpoint for creating a new user profile including response handling.
    Follow-up questions:
      1. What HTTP methods would you use and why?
-     2. How would you handle input validation?
-     3. What security measures would you implement?
+     2. How would you ensure validation of user input?
+     3. Can you outline what a successful response would look like?
 
-5. Can you provide an example of a debugging process you followed during your internship?
+5. What data structures would be most efficient for handling user data in memory, and why?
    Follow-up questions:
-     1. What tools did you use for debugging?
-     2. How did you document the bugs found?
-     3. What was the outcome after fixing the bugs?
+     1. Can you provide an example of where you used a specific data structure?
+     2. How do you choose between a list and a dictionary in Python?
+     3. What considerations do you make for performance?
 
-6. What factors do you think contributed to your rapid transition from intern to associate engineer at Valuebound?
+6. Write a simple SQL query to fetch all user data from a table named Users.
    Follow-up questions:
-     1. Which skills do you think were most critical?
-     2. How did you handle feedback during this time?
-     3. What changes in your responsibilities did you notice?
+     1. What if you only needed users created after a specific date?
+     2. How would you handle potential duplicate entries?
+     3. Can you discuss how indexing can improve query performance?
 
-7. How would you design a database schema for a task management application?
+7. Can you explain how you used Azure services in one of your projects?
    Follow-up questions:
-     1. What tables would you include and why?
-     2. How would you handle relationships between tasks and users?
-     3. What primary and foreign keys would you define?
+     1. What challenges did you face while integrating Azure?
+     2. Can you describe the deployment process?
+     3. What specific Azure services were most beneficial?
 
-8. Can you describe a situation where you applied advanced machine learning techniques in your projects, what methods you employed, and the outcomes achieved?
+8. What debugging strategies do you use when troubleshooting a Python application?
    Follow-up questions:
-     1. What were the challenges you faced in implementing these techniques?
-     2. How did you measure the success of these techniques?
-     3. What tools did you use for this project?
+     1. Can you name any tools you prefer for debugging?
+     2. How do you decide when a bug needs to be escalated?
+     3. What common debugging pitfalls have you encountered?
 
-9. What was the thought process behind the innovations that led to receiving the Innovation and Execution Award?
+9. How did you achieve the 80% accuracy in emotion detection during your SAGE project?
    Follow-up questions:
-     1. What role did your team play in this innovation?
-     2. How do you view innovation in software development?
-     3. What feedback did you receive from mentors or peers?
-
-10. How do you plan to improve your skills in JavaScript and Node.js?
-   Follow-up questions:
-     1. What resources will you use to learn?
-     2. Are there specific projects you would like to work on?
-     3. How do you stay updated with the technology trends?
+     1. What were the challenges in training the model?
+     2. What data preprocessing steps did you take?
+     3. Can you discuss how you validated the accuracy of your model?
 
 **
    - Maintain a conversational tone and pause for responses throughout.
@@ -210,65 +198,59 @@ You must cover two types of questions during the interview:
 - If Tell me something interesting that you have discovered, this need not be related to your work.,Tell me about a time where you hacked a non technical system to your advantage.,What are some of your active tabs on the browser right now? is null, skip this section entirely and do not mention behavioral questions to the candidate.
 
 2. ROLE-SPECIFIC QUESTIONS:
-1. Can you explain how you would implement a loop in Python that sums numbers from 1 to 100?
+1. Can you explain the key differences between variables, constants, and data types in Python?
    Follow-up questions:
-     1. How would you handle an error in this code?
-     2. Can you describe how variables work in Python?
-     3. What types of loops are available?
+     1. Can you provide examples of using constants in a project?
+     2. How do data types affect memory management?
+     3. What is type conversion and how do you handle it in Python?
 
-2. What data structure would you use to store user information, and why?
+2. How would you handle errors in a FastAPI application? Can you provide an example?
    Follow-up questions:
-     1. How would you access an element in this structure?
-     2. Can you explain the difference between lists and dictionaries?
-     3. What would you do to ensure data integrity?
+     1. What strategies would you use for logging errors?
+     2. How would you return a user-friendly error message?
+     3. Can you describe how FastAPI middleware could help in error management?
 
-3. Please walk us through the technical hurdles you faced in your last project and how you overcame them.
+3. Can you describe a technical challenge you faced while working on the SAGE project, and how you overcame it?
    Follow-up questions:
-     1. What was the impact of these hurdles on your project timeline?
-     2. How did you communicate these challenges to your team?
-     3. What learning did you take away from this experience?
+     1. What technology choices did you make for that project?
+     2. How did the team collaborate to address this challenge?
+     3. What lessons did you learn from this experience?
 
-4. How would you design a simple RESTful API endpoint for a user login feature?
+4. Design a simple REST endpoint for creating a new user profile including response handling.
    Follow-up questions:
      1. What HTTP methods would you use and why?
-     2. How would you handle input validation?
-     3. What security measures would you implement?
+     2. How would you ensure validation of user input?
+     3. Can you outline what a successful response would look like?
 
-5. Can you provide an example of a debugging process you followed during your internship?
+5. What data structures would be most efficient for handling user data in memory, and why?
    Follow-up questions:
-     1. What tools did you use for debugging?
-     2. How did you document the bugs found?
-     3. What was the outcome after fixing the bugs?
+     1. Can you provide an example of where you used a specific data structure?
+     2. How do you choose between a list and a dictionary in Python?
+     3. What considerations do you make for performance?
 
-6. What factors do you think contributed to your rapid transition from intern to associate engineer at Valuebound?
+6. Write a simple SQL query to fetch all user data from a table named Users.
    Follow-up questions:
-     1. Which skills do you think were most critical?
-     2. How did you handle feedback during this time?
-     3. What changes in your responsibilities did you notice?
+     1. What if you only needed users created after a specific date?
+     2. How would you handle potential duplicate entries?
+     3. Can you discuss how indexing can improve query performance?
 
-7. How would you design a database schema for a task management application?
+7. Can you explain how you used Azure services in one of your projects?
    Follow-up questions:
-     1. What tables would you include and why?
-     2. How would you handle relationships between tasks and users?
-     3. What primary and foreign keys would you define?
+     1. What challenges did you face while integrating Azure?
+     2. Can you describe the deployment process?
+     3. What specific Azure services were most beneficial?
 
-8. Can you describe a situation where you applied advanced machine learning techniques in your projects, what methods you employed, and the outcomes achieved?
+8. What debugging strategies do you use when troubleshooting a Python application?
    Follow-up questions:
-     1. What were the challenges you faced in implementing these techniques?
-     2. How did you measure the success of these techniques?
-     3. What tools did you use for this project?
+     1. Can you name any tools you prefer for debugging?
+     2. How do you decide when a bug needs to be escalated?
+     3. What common debugging pitfalls have you encountered?
 
-9. What was the thought process behind the innovations that led to receiving the Innovation and Execution Award?
+9. How did you achieve the 80% accuracy in emotion detection during your SAGE project?
    Follow-up questions:
-     1. What role did your team play in this innovation?
-     2. How do you view innovation in software development?
-     3. What feedback did you receive from mentors or peers?
-
-10. How do you plan to improve your skills in JavaScript and Node.js?
-   Follow-up questions:
-     1. What resources will you use to learn?
-     2. Are there specific projects you would like to work on?
-     3. How do you stay updated with the technology trends?
+     1. What were the challenges in training the model?
+     2. What data preprocessing steps did you take?
+     3. Can you discuss how you validated the accuracy of your model?
 
 
 - **EVERY SINGLE ROLE-SPECIFIC QUESTION MUST BE ASKED - NO EXCEPTIONS**
@@ -358,65 +340,59 @@ If and only if actual technical issues are confirmed:
 **PRE-CONCLUSION CHECKLIST - MANDATORY:**
 Before concluding the interview, you MUST verify:
 1. ALL behavioral questions (if provided) have been asked
-2. ALL role-specific questions from 1. Can you explain how you would implement a loop in Python that sums numbers from 1 to 100?
+2. ALL role-specific questions from 1. Can you explain the key differences between variables, constants, and data types in Python?
    Follow-up questions:
-     1. How would you handle an error in this code?
-     2. Can you describe how variables work in Python?
-     3. What types of loops are available?
+     1. Can you provide examples of using constants in a project?
+     2. How do data types affect memory management?
+     3. What is type conversion and how do you handle it in Python?
 
-2. What data structure would you use to store user information, and why?
+2. How would you handle errors in a FastAPI application? Can you provide an example?
    Follow-up questions:
-     1. How would you access an element in this structure?
-     2. Can you explain the difference between lists and dictionaries?
-     3. What would you do to ensure data integrity?
+     1. What strategies would you use for logging errors?
+     2. How would you return a user-friendly error message?
+     3. Can you describe how FastAPI middleware could help in error management?
 
-3. Please walk us through the technical hurdles you faced in your last project and how you overcame them.
+3. Can you describe a technical challenge you faced while working on the SAGE project, and how you overcame it?
    Follow-up questions:
-     1. What was the impact of these hurdles on your project timeline?
-     2. How did you communicate these challenges to your team?
-     3. What learning did you take away from this experience?
+     1. What technology choices did you make for that project?
+     2. How did the team collaborate to address this challenge?
+     3. What lessons did you learn from this experience?
 
-4. How would you design a simple RESTful API endpoint for a user login feature?
+4. Design a simple REST endpoint for creating a new user profile including response handling.
    Follow-up questions:
      1. What HTTP methods would you use and why?
-     2. How would you handle input validation?
-     3. What security measures would you implement?
+     2. How would you ensure validation of user input?
+     3. Can you outline what a successful response would look like?
 
-5. Can you provide an example of a debugging process you followed during your internship?
+5. What data structures would be most efficient for handling user data in memory, and why?
    Follow-up questions:
-     1. What tools did you use for debugging?
-     2. How did you document the bugs found?
-     3. What was the outcome after fixing the bugs?
+     1. Can you provide an example of where you used a specific data structure?
+     2. How do you choose between a list and a dictionary in Python?
+     3. What considerations do you make for performance?
 
-6. What factors do you think contributed to your rapid transition from intern to associate engineer at Valuebound?
+6. Write a simple SQL query to fetch all user data from a table named Users.
    Follow-up questions:
-     1. Which skills do you think were most critical?
-     2. How did you handle feedback during this time?
-     3. What changes in your responsibilities did you notice?
+     1. What if you only needed users created after a specific date?
+     2. How would you handle potential duplicate entries?
+     3. Can you discuss how indexing can improve query performance?
 
-7. How would you design a database schema for a task management application?
+7. Can you explain how you used Azure services in one of your projects?
    Follow-up questions:
-     1. What tables would you include and why?
-     2. How would you handle relationships between tasks and users?
-     3. What primary and foreign keys would you define?
+     1. What challenges did you face while integrating Azure?
+     2. Can you describe the deployment process?
+     3. What specific Azure services were most beneficial?
 
-8. Can you describe a situation where you applied advanced machine learning techniques in your projects, what methods you employed, and the outcomes achieved?
+8. What debugging strategies do you use when troubleshooting a Python application?
    Follow-up questions:
-     1. What were the challenges you faced in implementing these techniques?
-     2. How did you measure the success of these techniques?
-     3. What tools did you use for this project?
+     1. Can you name any tools you prefer for debugging?
+     2. How do you decide when a bug needs to be escalated?
+     3. What common debugging pitfalls have you encountered?
 
-9. What was the thought process behind the innovations that led to receiving the Innovation and Execution Award?
+9. How did you achieve the 80% accuracy in emotion detection during your SAGE project?
    Follow-up questions:
-     1. What role did your team play in this innovation?
-     2. How do you view innovation in software development?
-     3. What feedback did you receive from mentors or peers?
-
-10. How do you plan to improve your skills in JavaScript and Node.js?
-   Follow-up questions:
-     1. What resources will you use to learn?
-     2. Are there specific projects you would like to work on?
-     3. How do you stay updated with the technology trends?
+     1. What were the challenges in training the model?
+     2. What data preprocessing steps did you take?
+     3. Can you discuss how you validated the accuracy of your model?
 
  have been asked
 3. If any question was missed, ask it immediately before concluding
