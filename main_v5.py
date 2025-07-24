@@ -51,7 +51,7 @@ class AudioLoop:
         
     def set_call_id(self, call_id):
         self.call_id = call_id
-        print(f"Call ID set to: {self.call_id}")
+        logger.info(f"Call ID set to: {self.call_id}")
 
     def set_websocket(self, ws):
         self.ws = ws
@@ -59,12 +59,12 @@ class AudioLoop:
     def set_start_time(self):
         """Set the start time of the call."""
         self.start_time = int(time.time())
-        print(f"Call started at: {self.start_time}")
+        logger.info(f"Call started at: {self.start_time}")
     
     def set_end_time(self):
         """Set the end time of the call."""
         self.end_time = int(time.time())
-        print(f"Call ended at: {self.end_time}")
+        logger.info(f"Call ended at: {self.end_time}")
     
     def set_dynamic_data(self, dynamic_data):
         self.dynamic_data = dynamic_data
@@ -81,11 +81,11 @@ class AudioLoop:
             conversation_str = "\n".join(self.conversation)
             self.set_end_time()  # Set end time when saving conversation
             await call_service.add_transcript_and_timestamp(self.call_id, conversation_str, self.start_time, self.end_time)
-            print(f"Conversation saved for call ID: {self.call_id}")
+            logger.info(f"Conversation saved for call ID: {self.call_id}")
             self.conversation = []
             self.call_completed = True
         except Exception as e:
-            print(f"Error saving conversation: {e}")
+            logger.error(f"Error saving conversation: {e}")
   
    
 
@@ -99,14 +99,14 @@ class AudioLoop:
                     if 'bytes' in data:
                         flag, pcm = data['bytes'][0], data['bytes'][1:]
                         if flag == 0x01:  # Mic audio
-                            # print(f"Received mic audio: {len(pcm)} bytes")
+                            # logger.info(f"Received mic audio: {len(pcm)} bytes")
                             await self.out_queue.put({"data": pcm, "mime_type": "audio/pcm"})
                             self.last_audio_time = time.time()
                     elif 'text' in data:
                         json_data = json.loads(data['text'])
-                        print(f"Received JSON data: {json_data}")
+                        # logger.info(f"Received JSON data: {json_data}")
                         if json_data.get("action") == "end_call":
-                            print("Received end_call action")
+                            logger.info("Received end_call action")
                             self.active = False
                             await self.save_conversation_and_timestamp()
                             await self.ws.close()
@@ -117,15 +117,15 @@ class AudioLoop:
                             break
                         text = json_data.get("input", "")
                         if text:
-                            print(f"Received text input: {text}")
+                            # logger.info(f"Received text input: {text}")
                             await self.session.send(input=text or ".", end_of_turn=True)
                     else:
-                        print(f"Received unknown data type: {data}")
+                        logger.warning(f"Received unknown data type: {data}")
             except WebSocketDisconnect:
                 self.active = False
                 break
             except Exception as e:
-                print(f"Error in handle_websocket_messages: {e}")
+                logger.error(f"Error in handle_websocket_messages: {e}")
                 self.active = False
                 break
 
@@ -133,10 +133,10 @@ class AudioLoop:
         try:
             while self.active:
                 msg = await self.out_queue.get()
-                # print(f"Sending audio to Gemini: {len(msg['data'])} bytes")
+                # logger.info(f"Sending audio to Gemini: {len(msg['data'])} bytes")
                 await self.session.send_realtime_input(audio=msg)
         except Exception as e:
-            print(f"Error in send_audio_to_gemini: {e}")
+            logger.error(f"Error in send_audio_to_gemini: {e}")
             self.active = False
 
     async def handle_function_call(self, function_call):
@@ -145,10 +145,10 @@ class AudioLoop:
             function_name = function_call.name
             function_args = function_call.args if function_call.args else {}
             
-            print(f"Function call received: {function_name} with args: {function_args}")
+            logger.info(f"Function call received: {function_name} with args: {function_args}")
             
             if function_name == "end_interview_call":
-                print("Ending interview call as requested by user")
+                logger.info("Ending interview call as requested by user")
                 
                 # Send a final message to the client
                 await self.ws.send_json({
@@ -179,7 +179,7 @@ class AudioLoop:
             return False
             
         except Exception as e:
-            print(f"Error handling function call: {e}")
+            logger.error(f"Error handling function call: {e}")
             return False
 
     async def receive_from_gemini(self):
@@ -190,30 +190,30 @@ class AudioLoop:
                 candidate_text = ""
 
                 async for response in turn:
-                    # Debug: Print the full response structure
-                    # print(f"Response type: {type(response)}")
-                    # print(f"Response attributes: {dir(response)}")
+                    # Debug: Log the full response structure
+                    # logger.info(f"Response type: {type(response)}")
+                    # logger.info(f"Response attributes: {dir(response)}")
                     
                     # Handle function calls in different possible locations
                     function_call_found = False
                     if response.session_resumption_update:
-                        print(f"Session resumption update found: {response.session_resumption_update}")
+                        logger.info(f"Session resumption update found: {response.session_resumption_update}")
                         update = response.session_resumption_update
                         if update.resumable and update.new_handle:
                             new_handle = update.new_handle
-                            print(f"Session resumable: {update.resumable}, new handle: {new_handle}")
+                            logger.info(f"Session resumable: {update.resumable}, new handle: {new_handle}")
                             self.session_handle = new_handle
-                            print(f"Session handle updated to: {self.session_handle}")
+                            logger.info(f"Session handle updated to: {self.session_handle}")
                     
                     if hasattr(response, 'go_away') and response.go_away is not None:
-                        print(f"Received GoAway message. Time left: {response.go_away.time_left} seconds")
+                        logger.info(f"Received GoAway message. Time left: {response.go_away.time_left} seconds")
                         # Start a new session with the new handle if available
                         if self.session_handle:
-                            print("Initiating session resumption...")
+                            logger.info("Initiating session resumption...")
                             # self.active = False
                             # self.once+=1
-                            # print("once",self.once)
-                            print("Cancelling previous session tasks…")
+                            # logger.info("once",self.once)
+                            logger.info("Cancelling previous session tasks…")
                             self.tasks[0].cancel()  # Cancel handle_websocket_messages
                             self.tasks[1].cancel()  # Cancel send_audio_to_gemini
                             self.tasks[3].cancel()  
@@ -232,22 +232,22 @@ class AudioLoop:
                         if hasattr(response.server_content, 'model_turn') and response.server_content.model_turn:
                             if hasattr(response.server_content.model_turn, 'parts'):
                                 for part in response.server_content.model_turn.parts:
-                                    # print(f"Part type: {type(part)}, attributes: {dir(part)}")
+                                    # logger.info(f"Part type: {type(part)}, attributes: {dir(part)}")
                                     if hasattr(part, 'function_call') and part.function_call:
-                                        print(f"Found function call in model_turn: {part.function_call}")
+                                        logger.info(f"Found function call in model_turn: {part.function_call}")
                                         function_ended = await self.handle_function_call(part.function_call)
                                         if function_ended:
                                             return
                                         function_call_found = True
                                     elif hasattr(part, 'executable_code'):
-                                        print(f"Found executable_code part: {part.executable_code}")
+                                        logger.info(f"Found executable_code part: {part.executable_code}")
                                         # Check if this is actually a function call disguised as executable_code
                                         if hasattr(part.executable_code, 'code'):
                                             code_content = part.executable_code.code
-                                            print(f"Executable code content: {code_content}")
+                                            logger.info(f"Executable code content: {code_content}")
                                             # Look for end_interview_call in the code
                                             if "end_interview_call" in code_content:
-                                                print("Detected end_interview_call in executable code")
+                                                logger.info("Detected end_interview_call in executable code")
                                                 # Create a mock function call object
                                                 class MockFunctionCall:
                                                     def __init__(self):
@@ -265,9 +265,9 @@ class AudioLoop:
                             if hasattr(candidate, 'content') and candidate.content:
                                 if hasattr(candidate.content, 'parts'):
                                     for part in candidate.content.parts:
-                                        print(f"Candidate part type: {type(part)}, attributes: {dir(part)}")
+                                        logger.info(f"Candidate part type: {type(part)}, attributes: {dir(part)}")
                                         if hasattr(part, 'function_call') and part.function_call:
-                                            print(f"Found function call in candidates: {part.function_call}")
+                                            logger.info(f"Found function call in candidates: {part.function_call}")
                                             function_ended = await self.handle_function_call(part.function_call)
                                             if function_ended:
                                                 return
@@ -275,9 +275,9 @@ class AudioLoop:
 
                     # Handle audio data
                     if data := response.data:
-                        # print(f"Received audio data from Gemini: {len(data)} bytes")
+                        # logger.info(f"Received audio data from Gemini: {len(data)} bytes")
                         self.audio_in_queue.put_nowait(data)
-                        # print(f"Audio in queue size: {self.audio_in_queue.qsize()}")
+                        # logger.info(f"Audio in queue size: {self.audio_in_queue.qsize()}")
 
                     # Handle transcriptions
                     if hasattr(response, 'server_content') and response.server_content:
@@ -307,21 +307,21 @@ class AudioLoop:
                         self.conversation.append(self.add_label("User", candidate_text.strip()))
                     if ai_text.strip():
                         self.conversation.append(self.add_label("AI", ai_text.strip()))
-                    print("Conversation:", self.conversation)
+                    logger.info(f"Conversation: {self.conversation}")
 
         
         
         except ConnectionClosedOK:
             # Normal shutdown: nothing to do here
-            print("receive_from_gemini: connection closed normally")
+            logger.info("receive_from_gemini: connection closed normally")
         except asyncio.CancelledError:
             # Task was cancelled: clean up if needed
             
-            print("receive_from_gemini cancelled")
+            logger.info("receive_from_gemini cancelled")
             
         except Exception as e:
             # Other errors you might still want to log
-            print(f"Error in receive_from_gemini: {e}")
+            logger.error(f"Error in receive_from_gemini: {e}")
 
 
     async def play_audio(self):
@@ -329,11 +329,11 @@ class AudioLoop:
             try:
                 pcm = await self.audio_in_queue.get()
                 msg = b'\x02' + pcm
-                # print(f"Playing audio chunk of size: {len(msg)} bytes")
+                # logger.info(f"Playing audio chunk of size: {len(msg)} bytes")
                 if self.active:  # Check if still active before sending
                     await self.ws.send_bytes(msg)
             except Exception as e:
-                print(f"Error in play_audio: {e}")
+                logger.error(f"Error in play_audio: {e}")
                 self.active = False
                 break
 
@@ -343,10 +343,10 @@ class AudioLoop:
                 await asyncio.sleep(0.5)
                 time_since_last_audio = time.time() - self.last_audio_time
                 if time_since_last_audio > 2.0:
-                    print("Detected 2 seconds of silence. Signaling end of speech.")
+                    logger.info("Detected 2 seconds of silence. Signaling end of speech.")
                     self.last_audio_time = time.time()
         except Exception as e:
-            print(f"Error in monitor_silence: {e}")
+            logger.error(f"Error in monitor_silence: {e}")
             self.active = False
 
     def create_final_prompt(self):
@@ -359,7 +359,7 @@ class AudioLoop:
                 json_data = json.loads(json_data)
             except json.JSONDecodeError:
                 json_data = {}
-                print("Error: Could not parse dynamic_data as JSON. Using empty dict.")
+                logger.error("Error: Could not parse dynamic_data as JSON. Using empty dict.")
         
         interviewer_personality = "professional, friendly, and encouraging"
         
@@ -370,7 +370,7 @@ class AudioLoop:
                 questions_data = json.loads(questions_data)
             except json.JSONDecodeError:
                 questions_data = []
-                print("Error: Could not parse questions as JSON. Using empty list.")
+                logger.error("Error: Could not parse questions as JSON. Using empty list.")
         
         # Format questions and follow-ups
         formatted_questions = ""
@@ -413,8 +413,8 @@ class AudioLoop:
         self.final_prompt = final_prompt + tool_instruction
         
         # Write the final prompt to a file for debugging
-        with open("final_prompt.txt", "w") as f:
-            f.write(self.final_prompt)
+        # with open("final_prompt.txt", "w", encoding="utf-8") as f:
+        #     f.write(self.final_prompt)
             
     async def resume_session(self):
         """Resume the session if it was interrupted."""
@@ -424,11 +424,11 @@ class AudioLoop:
                 try:
                     await self.session.close()
                 except Exception as e:
-                    print("Error closing old session:", e)
+                    logger.error(f"Error closing old session: {e}")
 
             # 2) Cancel *only* your four background tasks
             # if self.tasks:
-            #     print("Cancelling previous session tasks…")
+            #     logger.info("Cancelling previous session tasks…")
             #     for task in self.tasks:
             #         if not task.done():
             #             try:
@@ -470,7 +470,7 @@ class AudioLoop:
                 )
             )
 
-            # print("Resuming session with config:", CONFIGR)
+            # logger.info(f"Resuming session with config: {CONFIGR}")
 
             async with client.aio.live.connect(model=MODEL, config=CONFIGR) as session:
                 self.session = session
@@ -485,28 +485,27 @@ class AudioLoop:
                 for task in self.tasks:
                     await task
                     
-                print("Session resumed and initial prompt sent.")
+                logger.info("Session resumed and initial prompt sent.")
              
         except asyncio.CancelledError:
-            print("Session cancelled")
+            logger.warning("Session cancelled")
             while self.call_completed is False:
                 await self.resume_session()
         except Exception as e:
-            print(f"Error in AudioLoop: {e}")
-            traceback.print_exc()
+            logger.error(f"Error in AudioLoop: {e}", exc_info=True)
         finally:
             self.active = False
             self.call_completed = True
-            print("AudioLoop finished")
+            logger.info("AudioLoop finished")
 
 
     async def run(self):
         try:
             async with client.aio.live.connect(model=MODEL, config=CONFIG) as session:
                 self.session = session
-                print("Sending initial prompt to Gemini...")
+                logger.info("Sending initial prompt to Gemini...")
                 await self.session.send(input=f"{self.final_prompt}", end_of_turn=True)
-                print("Initial prompt sent.")
+                logger.info("Initial prompt sent.")
                 self.set_start_time()  # Set start time when session starts
                 
                 
@@ -520,34 +519,33 @@ class AudioLoop:
                     await task
             
         except asyncio.CancelledError:
-            print("Session cancelled")
+            logger.warning("Session cancelled")
             while self.call_completed is False:
                 await self.resume_session()
         except Exception as e:
-            print(f"Error in AudioLoop: {e}")
-            traceback.print_exc()
+            logger.error(f"Error in AudioLoop: {e}", exc_info=True)
         finally:
             self.active = False
-            print("AudioLoop finished")
+            logger.info("AudioLoop finished")
             
             
 @app.websocket("/ws/audio")
 async def audio_ws(ws: WebSocket, agent_id: str = "default-agent"):
     await ws.accept()
     call_id = ws.query_params.get("access_token", None)
-    print("call_id is ", call_id)
+    logger.info(f"call_id is {call_id}")
     loop = AudioLoop()
     loop.set_websocket(ws)
     try:
         data = await ws.receive_text()
         data = json.loads(data)
-        print(f"Received initial data: {data}")
+        # logger.info(f"Received initial data: {data}")
         dynamic_data = data.get("dynamic_data", {})
         if not dynamic_data:
             raise ValueError("Dynamic data is required to start the interview.")
-        print("data is ",data)
+        # logger.info(f"data is {data}")
         loop.set_call_id(call_id)
-        print(f"Call ID: {loop.call_id}")
+        logger.info(f"Call ID: {loop.call_id}")
         loop.set_dynamic_data(dynamic_data)
         loop.set_agent_id(agent_id)
         
@@ -561,8 +559,8 @@ async def audio_ws(ws: WebSocket, agent_id: str = "default-agent"):
         except:
             pass
     except Exception as e:
-        print(f"Error: {e}")
-        print(traceback.format_exc())
+        logger.error(f"Error: {e}")
+        logger.error("An unhandled exception occurred in audio_ws", exc_info=True)
         loop.active = False
         try:
             await ws.close()
@@ -619,7 +617,7 @@ async def register_call(request: RegisterCallRequest):
     }
     await call_service.save_call(call_data)
     logger.info(f"Call registered with ID: {call_id} for interviewer: {interviewer_id}")
-    # print(call_service.get_call(call_id))
+    # logger.info(call_service.get_call(call_id))
     
     return {"message": "Call registered successfully.", "call_id": call_id, "access_token": call_id}
 
