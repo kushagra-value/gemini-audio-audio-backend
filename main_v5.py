@@ -384,26 +384,75 @@ class AudioLoop:
                     formatted_questions += f"     {f_idx}. {follow_up}\n"
             formatted_questions += "\n"
         
-        # Define replacements for the prompt
+        print(f"json_data: {json_data}")
+        
+        # Handle organization_data parsing
+        org_data = {}
+        if "organization_data" in json_data:
+            if isinstance(json_data["organization_data"], str):
+                try:
+                    org_data = json.loads(json_data["organization_data"])
+                except json.JSONDecodeError:
+                    org_data = {}
+                    logger.error("Error: Could not parse organization_data as JSON. Using empty dict.")
+            elif isinstance(json_data["organization_data"], dict):
+                org_data = json_data["organization_data"]
+            else:
+                org_data = {}
+        
+        # Log organization data for debugging
+        logger.info(f"Organization data: {org_data}")
+        
+        # Helper function to safely get organization data with proper fallbacks
+        def get_org_value(key, fallback=""):
+            value = org_data.get(key, fallback)
+            # Check if value is valid (not empty, not just whitespace, not placeholder syntax)
+            if value and str(value).strip() and not str(value).startswith('{{') and not str(value).endswith('}}'):
+                return str(value).strip()
+            return fallback
+        
+        # Define replacements for the prompt with improved organization data handling
         replacements = {
-            "{{role}}": json_data.get("role", ""),
-            "{{mins}}": json_data.get("mins", ""),
-            "{{name}}": json_data.get("name", ""),
-            "{{objective}}": json_data.get("objective", ""),
-            "{{questionFocus}}": json_data.get("questionFocus", ""),
-            "{{description}}": json_data.get("description", ""),
-            "{{interviewerName}}": json_data.get("interviewerName", ""),
+            "{{role}}": str(json_data.get("role", "")),
+            "{{mins}}": str(json_data.get("mins", "")),
+            "{{name}}": str(json_data.get("name", "")),
+            "{{objective}}": str(json_data.get("objective", "")),
+            "{{questionFocus}}": str(json_data.get("questionFocus", "")),
+            "{{description}}": str(json_data.get("description", "")),
+            "{{interviewerName}}": str(json_data.get("interviewerName", "")),
             "{{interviewerPersonality}}": interviewer_personality,
-            "{{candidateName}}": json_data.get("name", ""),
-            "{{behavioralQuestions}}": json_data.get("behavioralQuestions", ""),
-            "{{questions}}": formatted_questions
+            "{{candidateName}}": str(json_data.get("name", "")),
+            "{{behavioralQuestions}}": str(json_data.get("behavioralQuestions", "")),
+            "{{questions}}": formatted_questions,
+
+            # Organization data with better handling
+            "{{organization_data.name}}": get_org_value("name"),
+            "{{org_name}}": get_org_value("name"),
+            "{{org_industry}}": get_org_value("industry"),
+            "{{org_company_size}}": get_org_value("company_size"),
+            "{{org_company_type}}": get_org_value("company_type"),
+            "{{org_website}}": get_org_value("website"),
+            "{{org_address}}": get_org_value("address"),
+            "{{org_values}}": get_org_value("values"),
+            "{{org_key_technologies}}": get_org_value("key_technologies"),
+            
+            # Additional organization data patterns that might appear in prompt
+            "{{organization_data.industry}}": get_org_value("industry"),
+            "{{organization_data.company_size}}": get_org_value("company_size"),
+            "{{organization_data.company_type}}": get_org_value("company_type"),
+            "{{organization_data.website}}": get_org_value("website"),
+            "{{organization_data.address}}": get_org_value("address"),
+            "{{organization_data.values}}": get_org_value("values"),
+            "{{organization_data.key_technologies}}": get_org_value("key_technologies"),
         }
         
         # Replace placeholders in the general prompt
         final_prompt = self.general_interviewer_prompt
         for placeholder, value in replacements.items():
-            final_prompt = final_prompt.replace(placeholder, str(value))
-        
+            if placeholder in final_prompt:  # Only replace if placeholder exists
+                final_prompt = final_prompt.replace(placeholder, str(value))
+                logger.info(f"Replaced {placeholder} with: {value}")
+                
         # Add tool usage instructions to the prompt
         tool_instruction = """
         
