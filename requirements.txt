@@ -9,7 +9,7 @@ sounddevice
 numpy
 websockets
 fastapi
-google-genai
+google-genai>=0.8.0
 pdfminer
 python-multipart
 pdfminer.six

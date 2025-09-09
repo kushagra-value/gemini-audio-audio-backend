@@ -9,19 +9,16 @@ load_dotenv()
 
 
 
-SEND_SR = 48_000
+SEND_SR = 16_000  # Updated to match new model requirements
 RECV_SR = 24_000
 CHUNK = 1024   
 
-MODEL = "models/gemini-2.0-flash-live-001"
+MODEL = "models/gemini-2.5-flash-preview-native-audio-dialog"
 print()
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 # print(f"GEMINI_KEY: {GEMINI_KEY}")
 client = genai.Client(
-    http_options=types.HttpOptions(
-        timeout=600,
-        api_version="v1beta"
-        ),
+    http_options={"api_version": "v1beta"},
     api_key=GEMINI_KEY,
 )
 
@@ -36,24 +33,30 @@ end_call_tool = types.Tool(
     ]
 )
 
-# Try CONFIG without input_audio_transcription first to see if that's the issue
+# Updated CONFIG for Gemini 2.5 Flash Preview Native Audio Dialog
 CONFIG = types.LiveConnectConfig(
-    response_modalities=["AUDIO"],
+    response_modalities=[
+        "AUDIO",
+    ],
+    media_resolution="MEDIA_RESOLUTION_MEDIUM",
     speech_config=types.SpeechConfig(
         voice_config=types.VoiceConfig(
-            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="puck"),
+            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Zephyr")
         )
     ),
     realtime_input_config=types.RealtimeInputConfig(
+        turn_coverage="TURN_INCLUDES_ALL_INPUT",
         automatic_activity_detection=types.AutomaticActivityDetection(
             disabled=False,
-            # start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_LOW,
-            end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_LOW,
+            end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_HIGH,
             prefix_padding_ms=100,
             silence_duration_ms=1000,
         )
     ),
-    # Comment out input transcription for now
+    context_window_compression=types.ContextWindowCompressionConfig(
+        trigger_tokens=25600,
+        sliding_window=types.SlidingWindow(target_tokens=12800),
+    ),
     input_audio_transcription=types.AudioTranscriptionConfig(),
     output_audio_transcription=types.AudioTranscriptionConfig(),
     generation_config=types.GenerationConfig(

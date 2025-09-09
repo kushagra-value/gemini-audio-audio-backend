@@ -16,10 +16,8 @@ from config.database import connect_to_mongo, close_mongo_connection, get_databa
 from services.call_service import call_service
 app = FastAPI()
 
-# # Ensure config aligns with frontend
-# SEND_SR = 16000
-# RECV_SR = 16000
-# CHUNK = 1024  # Buffer size for audio chunks
+# Configuration now imported from config.py - updated for Gemini 2.5
+# SEND_SR = 16000 (matches frontend), RECV_SR = 24000, CHUNK = 1024
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -438,24 +436,30 @@ class AudioLoop:
             #     await asyncio.gather(*self.tasks, return_exceptions=True)
             #     self.tasks = []
 
-            # 3) Reconfigure and reconnect
+            # 3) Reconfigure and reconnect with updated Gemini 2.5 config
             CONFIGR = types.LiveConnectConfig(
-                response_modalities=["AUDIO"],
+                response_modalities=[
+                    "AUDIO",
+                ],
+                media_resolution="MEDIA_RESOLUTION_MEDIUM",
                 speech_config=types.SpeechConfig(
                     voice_config=types.VoiceConfig(
-                        prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="puck"),
+                        prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Zephyr")
                     )
                 ),
                 realtime_input_config=types.RealtimeInputConfig(
+                    turn_coverage="TURN_INCLUDES_ALL_INPUT",
                     automatic_activity_detection=types.AutomaticActivityDetection(
                         disabled=False,
-                        # start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_LOW,
                         end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_LOW,
                         prefix_padding_ms=100,
                         silence_duration_ms=1000,
                     )
                 ),
-                # Comment out input transcription for now
+                context_window_compression=types.ContextWindowCompressionConfig(
+                    trigger_tokens=25600,
+                    sliding_window=types.SlidingWindow(target_tokens=12800),
+                ),
                 input_audio_transcription=types.AudioTranscriptionConfig(),
                 output_audio_transcription=types.AudioTranscriptionConfig(),
                 generation_config=types.GenerationConfig(
