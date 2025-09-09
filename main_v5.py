@@ -384,8 +384,6 @@ class AudioLoop:
                     formatted_questions += f"     {f_idx}. {follow_up}\n"
             formatted_questions += "\n"
         
-        print(f"json_data: {json_data}")
-        
         # Handle organization_data parsing
         org_data = {}
         if "organization_data" in json_data:
