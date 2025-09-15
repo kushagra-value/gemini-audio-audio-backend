@@ -1,17 +1,19 @@
 from fastapi import FastAPI
+import pyaudio
 
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 import os
+
 load_dotenv()
 
 
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
-SEND_SAMPLE_RATE = 16000
-RECEIVE_SAMPLE_RATE = 24000
-CHUNK_SIZE = 1024 
+SEND_SR = 16000
+RECV_SR = 24000
+CHUNK = 1024 
 
 MODEL = "models/gemini-2.5-flash-live-preview"
 
@@ -36,31 +38,32 @@ end_call_tool = types.Tool(
 
 # Try CONFIG without input_audio_transcription first to see if that's the issue
 CONFIG = types.LiveConnectConfig(
-    response_modalities=[
-        "AUDIO",
-    ],
-    media_resolution="MEDIA_RESOLUTION_MEDIUM",
+    response_modalities=["AUDIO"],
     speech_config=types.SpeechConfig(
-        language_code="en-IN",
         voice_config=types.VoiceConfig(
-            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Puck")
+            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="puck"),
         )
     ),
-    context_window_compression=types.ContextWindowCompressionConfig(
-        trigger_tokens=25600,
-        sliding_window=types.SlidingWindow(target_tokens=12800),
-    ),
-    realtime_input_config=types.RealtimeInputConfig(  # Added for VAD adjustment
+    realtime_input_config=types.RealtimeInputConfig(
         automatic_activity_detection=types.AutomaticActivityDetection(
             disabled=False,
-            # start_of_speech_sensitivity="START_SENSITIVITY_HIGH",
-            # end_of_speech_sensitivity="END_SENSITIVITY_HIGH",
+            start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_HIGH,
+            end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_HIGH,
             prefix_padding_ms=200,
-            silence_duration_ms=1000,
+            silence_duration_ms=500,
         )
     ),
-    system_instruction=types.Content(
-        parts=[types.Part.from_text(text=prompt)],
-        role="user"
+    # Corrected line:
+    input_audio_transcription=types.AudioTranscriptionConfig(),
+    output_audio_transcription=types.AudioTranscriptionConfig(),
+    generation_config=types.GenerationConfig(
+        temperature=0.7,
+        top_p=0.95,
+        top_k=70
     ),
+    tools=[end_call_tool],
+    system_instruction=types.Content(parts=[types.Part(text="TRANSCRIBE ONLY IN ENGLISH, NO OTHER LANGUAGES")]),
+    session_resumption=types.SessionResumptionConfig(
+        handle=None
+    )
 )
