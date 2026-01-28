@@ -13,8 +13,8 @@ SEND_SR = 16_000  # Updated to match new model requirements
 RECV_SR = 24_000
 CHUNK = 1024   
 
-MODEL = "models/gemini-2.5-flash-preview-native-audio-dialog"
-print()
+MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025"
+
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 # print(f"GEMINI_KEY: {GEMINI_KEY}")
 client = genai.Client(
