@@ -15,7 +15,7 @@ SEND_SR = 16000
 RECV_SR = 24000
 CHUNK = 1024 
 
-MODEL = "models/gemini-2.5-flash-live-preview"
+MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025"
 
 
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
