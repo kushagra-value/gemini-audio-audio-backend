@@ -17,16 +17,16 @@ DATABASE_NAME = os.getenv("DATABASE_NAME", "interview_db")
 async def connect_to_mongo():
     """Create database connection"""
     try:
-        Database.client = AsyncIOMotorClient(MONGODB_URL)
+        Database.client = AsyncIOMotorClient(MONGODB_URL, serverSelectionTimeoutMS=2000)
         Database.database = Database.client[DATABASE_NAME]
         
         # Test the connection
         await Database.client.admin.command('ping')
         logger.info(f"Connected to MongoDB at {MONGODB_URL}")
         
-    except ConnectionFailure as e:
+    except Exception as e:
         logger.error(f"Could not connect to MongoDB: {e}")
-        raise
+        raise e
 
 async def close_mongo_connection():
     """Close database connection"""

@@ -14,6 +14,7 @@ from google import genai
 from google.genai import types
 from config.database import connect_to_mongo, close_mongo_connection, get_database
 from services.call_service import call_service
+from services.audio_buffer import AdaptiveBuffer
 app = FastAPI()
 
 # # Ensure config aligns with frontend
@@ -27,8 +28,8 @@ logger = logging.getLogger(__name__)
 
 class AudioLoop:
     def __init__(self):
-        self.audio_in_queue = asyncio.Queue()
-        self.out_queue = asyncio.Queue()
+        self.audio_in_buffer = AdaptiveBuffer(name="Incoming")
+        self.audio_out_buffer = AdaptiveBuffer(name="Outgoing")
         self.session = None
         self.active = True
         self.last_audio_time = time.time()
@@ -100,7 +101,7 @@ class AudioLoop:
                         flag, pcm = data['bytes'][0], data['bytes'][1:]
                         if flag == 0x01:  # Mic audio
                             # logger.info(f"Received mic audio: {len(pcm)} bytes")
-                            await self.out_queue.put({"data": pcm, "mime_type": "audio/pcm"})
+                            self.audio_out_buffer.add_chunk({"data": pcm, "mime_type": "audio/pcm"})
                             self.last_audio_time = time.time()
                     elif 'text' in data:
                         json_data = json.loads(data['text'])
@@ -132,9 +133,10 @@ class AudioLoop:
     async def send_audio_to_gemini(self):
         try:
             while self.active:
-                msg = await self.out_queue.get()
-                # logger.info(f"Sending audio to Gemini: {len(msg['data'])} bytes")
-                await self.session.send_realtime_input(audio=msg)
+                msg = await self.audio_out_buffer.get_chunk()
+                if msg:
+                    # logger.info(f"Sending audio to Gemini: {len(msg['data'])} bytes")
+                    await self.session.send_realtime_input(audio=msg)
         except Exception as e:
             logger.error(f"Error in send_audio_to_gemini: {e}")
             self.active = False
@@ -182,152 +184,79 @@ class AudioLoop:
             logger.error(f"Error handling function call: {e}")
             return False
 
+    async def process_response_async(self, response):
+        """Offload transcript processing and function calls to background task."""
+        try:
+            # Handle function calls
+            if hasattr(response, 'server_content') and response.server_content:
+                if hasattr(response.server_content, 'model_turn') and response.server_content.model_turn:
+                    for part in response.server_content.model_turn.parts:
+                        if hasattr(part, 'function_call') and part.function_call:
+                            await self.handle_function_call(part.function_call)
+                        elif hasattr(part, 'executable_code') and part.executable_code and "end_interview_call" in part.executable_code.code:
+                            class MockFunctionCall:
+                                def __init__(self):
+                                    self.name = "end_interview_call"
+                                    self.args = {}
+                            await self.handle_function_call(MockFunctionCall())
+
+            # Handle transcripts
+            if hasattr(response, 'server_content') and response.server_content:
+                if response.server_content.output_transcription:
+                    chunk = response.server_content.output_transcription.text or ""
+                    await self.ws.send_json({"ai_text": chunk})
+                    if chunk:
+                        self.conversation.append(self.add_label("AI", chunk))
+                
+                if response.server_content.input_transcription:
+                    chunk = response.server_content.input_transcription.text or ""
+                    await self.ws.send_json({"candidate_text": chunk})
+                    if chunk:
+                        self.conversation.append(self.add_label("User", chunk))
+        except Exception as e:
+            logger.error(f"Error in process_response_async: {e}")
+
     async def receive_from_gemini(self):
         try:
             while self.active:
                 turn = self.session.receive()
-                ai_text = ""
-                candidate_text = ""
-
+                
                 async for response in turn:
-                    # Debug: Log the full response structure
-                    # logger.info(f"Response type: {type(response)}")
-                    # logger.info(f"Response attributes: {dir(response)}")
-                    
-                    # Handle function calls in different possible locations
-                    function_call_found = False
+                    # PRIORITY 0: Critical System Messages - Handle inline
                     if response.session_resumption_update:
-                        logger.info(f"Session resumption update found: {response.session_resumption_update}")
                         update = response.session_resumption_update
                         if update.resumable and update.new_handle:
-                            new_handle = update.new_handle
-                            logger.info(f"Session resumable: {update.resumable}, new handle: {new_handle}")
-                            self.session_handle = new_handle
+                            self.session_handle = update.new_handle
                             logger.info(f"Session handle updated to: {self.session_handle}")
                     
                     if hasattr(response, 'go_away') and response.go_away is not None:
-                        logger.info(f"Received GoAway message. Time left: {response.go_away.time_left} seconds")
-                        # Start a new session with the new handle if available
-                        if self.session_handle:
-                            logger.info("Initiating session resumption...")
-                            # self.active = False
-                            # self.once+=1
-                            # logger.info("once",self.once)
-                            logger.info("Cancelling previous session tasks…")
-                            self.tasks[0].cancel()  # Cancel handle_websocket_messages
-                            self.tasks[1].cancel()  # Cancel send_audio_to_gemini
-                            self.tasks[3].cancel()  
-                            asyncio.current_task().cancel()  # Cancel receive_from_gemini
-                            # await self.resume_session()  # Attempt to resume session if cancelled
-                            # Give time for cancellation to propagate
-                            # await asyncio.sleep(1)
-                            # await asyncio.gather(*self.tasks, return_exceptions=True)
-                           
+                        logger.info(f"Received GoAway message. Time left: {response.go_away.time_left}")
+                        # If we have a handle, we might need to resume, but that's a larger refactor.
+                        # For now, log and continue.
                     
-                            
-                            
-                    
-                    # Check in server_content.model_turn
-                    if hasattr(response, 'server_content') and response.server_content:
-                        if hasattr(response.server_content, 'model_turn') and response.server_content.model_turn:
-                            if hasattr(response.server_content.model_turn, 'parts'):
-                                for part in response.server_content.model_turn.parts:
-                                    # logger.info(f"Part type: {type(part)}, attributes: {dir(part)}")
-                                    if hasattr(part, 'function_call') and part.function_call:
-                                        logger.info(f"Found function call in model_turn: {part.function_call}")
-                                        function_ended = await self.handle_function_call(part.function_call)
-                                        if function_ended:
-                                            return
-                                        function_call_found = True
-                                    elif hasattr(part, 'executable_code'):
-                                        logger.info(f"Found executable_code part: {part.executable_code}")
-                                        # Check if this is actually a function call disguised as executable_code
-                                        if hasattr(part.executable_code, 'code'):
-                                            code_content = part.executable_code.code
-                                            logger.info(f"Executable code content: {code_content}")
-                                            # Look for end_interview_call in the code
-                                            if "end_interview_call" in code_content:
-                                                logger.info("Detected end_interview_call in executable code")
-                                                # Create a mock function call object
-                                                class MockFunctionCall:
-                                                    def __init__(self):
-                                                        self.name = "end_interview_call"
-                                                        self.args = {}
-                                                
-                                                function_ended = await self.handle_function_call(MockFunctionCall())
-                                                if function_ended:
-                                                    return
-                                                function_call_found = True
-                    
-                    # Check in direct candidates (fallback)
-                    if not function_call_found and hasattr(response, 'candidates'):
-                        for candidate in response.candidates:
-                            if hasattr(candidate, 'content') and candidate.content:
-                                if hasattr(candidate.content, 'parts'):
-                                    for part in candidate.content.parts:
-                                        logger.info(f"Candidate part type: {type(part)}, attributes: {dir(part)}")
-                                        if hasattr(part, 'function_call') and part.function_call:
-                                            logger.info(f"Found function call in candidates: {part.function_call}")
-                                            function_ended = await self.handle_function_call(part.function_call)
-                                            if function_ended:
-                                                return
-                                            function_call_found = True
-
-                    # Handle audio data
+                    # PRIORITY 1: Audio data - immediate forwarding (critical path)
                     if data := response.data:
-                        # logger.info(f"Received audio data from Gemini: {len(data)} bytes")
-                        self.audio_in_queue.put_nowait(data)
-                        # logger.info(f"Audio in queue size: {self.audio_in_queue.qsize()}")
-
-                    # Handle transcriptions
+                        self.audio_in_buffer.add_chunk(data)
+                    
+                    # PRIORITY 2: Everything else offloaded to background
                     if hasattr(response, 'server_content') and response.server_content:
-                        if response.server_content.output_transcription:
-                            chunk = response.server_content.output_transcription.text or ""
-                            ai_text += chunk
-                            await self.ws.send_json({"ai_text": ai_text})
+                        asyncio.create_task(self.process_response_async(response))
 
-                        if response.server_content.input_transcription:
-                            chunk = response.server_content.input_transcription.text or ""
-                            candidate_text += chunk
-                            await self.ws.send_json({"candidate_text": candidate_text})
-
-                if ai_text.strip() or candidate_text.strip():
-                    transcript_data = {}
-                    if ai_text.strip():
-                        transcript_data["ai_text"] = ai_text.strip()
-                    if candidate_text.strip():
-                        transcript_data["candidate_text"] = candidate_text.strip()
-                    
-                    
-                    # Only send if websocket is still active
-                    # if self.active:
-                    #     await self.ws.send_json(transcript_data)
-
-                    if candidate_text.strip():
-                        self.conversation.append(self.add_label("User", candidate_text.strip()))
-                    if ai_text.strip():
-                        self.conversation.append(self.add_label("AI", ai_text.strip()))
-                    logger.info(f"Conversation: {self.conversation}")
-
-        
-        
         except ConnectionClosedOK:
-            # Normal shutdown: nothing to do here
             logger.info("receive_from_gemini: connection closed normally")
         except asyncio.CancelledError:
-            # Task was cancelled: clean up if needed
-            
             logger.info("receive_from_gemini cancelled")
-            
         except Exception as e:
-            # Other errors you might still want to log
             logger.error(f"Error in receive_from_gemini: {e}")
+
 
 
     async def play_audio(self):
         while self.active:
             try:
-                pcm = await self.audio_in_queue.get()
+                pcm = await self.audio_in_buffer.get_chunk()
+                if not pcm:
+                    continue
                 msg = b'\x02' + pcm
                 # logger.info(f"Playing audio chunk of size: {len(msg)} bytes")
                 if self.active:  # Check if still active before sending

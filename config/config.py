@@ -13,7 +13,7 @@ SEND_SR = 48_000
 RECV_SR = 24_000
 CHUNK = 1024   
 
-MODEL = "models/gemini-2.0-flash-live-001"
+MODEL = "models/gemini-3.1-flash-live-preview"
 print()
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 # print(f"GEMINI_KEY: {GEMINI_KEY}")
